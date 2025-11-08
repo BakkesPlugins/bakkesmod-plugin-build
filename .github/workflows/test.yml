@@ -16,6 +16,14 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
       
+      # Copy test project to workspace root for testing
+    #   - name: Setup test environment
+    #     shell: pwsh
+    #     run: |
+    #       Copy-Item -Path "test/TestProject/*" -Destination "." -Recurse -Force
+    #       Write-Host "Test environment setup complete"
+    #       Get-ChildItem -Path "." -Name
+      
       - name: Test BakkesMod Plugin Build Action
         id: test-build
         uses: ./  # Uses the action in the current repository

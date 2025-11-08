@@ -106,13 +106,35 @@ runs:
         # Create artifacts/plugins directory
         New-Item -ItemType Directory -Force -Path "artifacts/plugins"
         
+        # Get solution directory from the solution path
+        $solutionDir = Split-Path -Parent $env:SOLUTION_PATH
+        Write-Host "Solution directory: $solutionDir"
+        
+        # Look for plugins directory relative to solution
+        $pluginsPath = Join-Path $solutionDir "plugins"
+        if (Test-Path $pluginsPath) {
+          Write-Host "Found plugins directory: $pluginsPath"
+          Get-ChildItem -Path $pluginsPath -Include "*.dll", "*.pdb" -Recurse | ForEach-Object {
+            Write-Host "Copying: $($_.FullName)"
+            Copy-Item $_.FullName -Destination "artifacts/plugins" -Force
+          }
+        } else {
+          Write-Host "No plugins directory found at: $pluginsPath"
+        }
+        
+        # Also check workspace root for backwards compatibility
         if (Test-Path "plugins") {
+          Write-Host "Found plugins directory in workspace root"
           Get-ChildItem -Path "plugins" -Include "*.dll", "*.pdb" -Recurse | ForEach-Object {
             Copy-Item $_.FullName -Destination "artifacts/plugins" -Force
           }
         }
         
-        if (Test-Path "data") {
+        # Look for data directory relative to solution
+        $dataPath = Join-Path $solutionDir "data"
+        if (Test-Path $dataPath) {
+          Copy-Item -Path $dataPath -Destination "artifacts/data" -Recurse -Force
+        } elseif (Test-Path "data") {
           Copy-Item -Path "data" -Destination "artifacts/data" -Recurse -Force
         }
         
