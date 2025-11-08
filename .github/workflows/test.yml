@@ -20,8 +20,7 @@ jobs:
         id: test-build
         uses: ./  # Uses the action in the current repository
         with:
-          build-config: 'Debug'
-          bakkesmod-sdk-ref: 'main'
+          build-config: 'Release'
           retention-days: '7'
       
       - name: Verify outputs
