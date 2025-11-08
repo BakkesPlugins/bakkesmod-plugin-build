@@ -25,12 +25,20 @@ inputs:
 
 outputs:
   artifact-name:
-    description: 'Name of the uploaded artifact'
+    description: 'Name of the uploaded artifact (with PDB files)'
     value: ${{ steps.create-archive.outputs.artifact-name }}
   
   zip-path:
-    description: 'Path to the created release zip file'
+    description: 'Path to the created release zip file (with PDB files)'
     value: ${{ steps.create-archive.outputs.zip-path }}
+  
+  public-artifact-name:
+    description: 'Name of the public release artifact (without PDB files)'
+    value: ${{ steps.create-public-archive.outputs.public-artifact-name }}
+  
+  public-zip-path:
+    description: 'Path to the public release zip file (without PDB files)'
+    value: ${{ steps.create-public-archive.outputs.public-zip-path }}
   
   build-status:
     description: 'Status of the build process'
@@ -103,8 +111,9 @@ runs:
     - name: Prepare build artifacts
       shell: pwsh
       run: |
-        # Create artifacts/plugins directory
+        # Create artifacts directories for both versions
         New-Item -ItemType Directory -Force -Path "artifacts/plugins"
+        New-Item -ItemType Directory -Force -Path "artifacts-public/plugins"
         
         # Get solution directory from the solution path
         $solutionDir = Split-Path -Parent $env:SOLUTION_PATH
@@ -116,7 +125,13 @@ runs:
           Write-Host "Found plugins directory: $pluginsPath"
           Get-ChildItem -Path $pluginsPath -Include "*.dll", "*.pdb" -Recurse | ForEach-Object {
             Write-Host "Copying: $($_.FullName)"
+            # Copy all files (including PDB) to main artifacts
             Copy-Item $_.FullName -Destination "artifacts/plugins" -Force
+            
+            # Copy only DLL files to public artifacts (excluding PDB)
+            if ($_.Extension -eq ".dll") {
+              Copy-Item $_.FullName -Destination "artifacts-public/plugins" -Force
+            }
           }
         } else {
           Write-Host "No plugins directory found at: $pluginsPath"
@@ -126,22 +141,33 @@ runs:
         if (Test-Path "plugins") {
           Write-Host "Found plugins directory in workspace root"
           Get-ChildItem -Path "plugins" -Include "*.dll", "*.pdb" -Recurse | ForEach-Object {
+            # Copy all files (including PDB) to main artifacts
             Copy-Item $_.FullName -Destination "artifacts/plugins" -Force
+            
+            # Copy only DLL files to public artifacts (excluding PDB)
+            if ($_.Extension -eq ".dll") {
+              Copy-Item $_.FullName -Destination "artifacts-public/plugins" -Force
+            }
           }
         }
         
-        # Look for data directory relative to solution
+        # Look for data directory relative to solution and copy to both artifacts
         $dataPath = Join-Path $solutionDir "data"
         if (Test-Path $dataPath) {
           Copy-Item -Path $dataPath -Destination "artifacts/data" -Recurse -Force
+          Copy-Item -Path $dataPath -Destination "artifacts-public/data" -Recurse -Force
         } elseif (Test-Path "data") {
           Copy-Item -Path "data" -Destination "artifacts/data" -Recurse -Force
+          Copy-Item -Path "data" -Destination "artifacts-public/data" -Recurse -Force
         }
         
-        Write-Host "Artifacts contents:"
+        Write-Host "Full artifacts contents (with PDB files):"
         Get-ChildItem -Path "artifacts" -Recurse
+        Write-Host ""
+        Write-Host "Public artifacts contents (without PDB files):"
+        Get-ChildItem -Path "artifacts-public" -Recurse
 
-    - name: Create release archive
+    - name: Create release archive (with PDB files)
       id: create-archive
       shell: pwsh
       run: |
@@ -151,23 +177,52 @@ runs:
         if ([string]::IsNullOrEmpty($repoName)) {
           $repoName = Split-Path -Leaf $env:GITHUB_WORKSPACE
         }
-        $zipName = "$repoName-$timestamp.zip"
+        $zipName = "$repoName-debug-$timestamp.zip"
         
         if (Test-Path "artifacts") {
           Compress-Archive -Path "artifacts\*" -DestinationPath $zipName
-          echo "artifact-name=$repoName" | Out-File -FilePath $env:GITHUB_OUTPUT -Append
+          echo "artifact-name=$repoName-debug" | Out-File -FilePath $env:GITHUB_OUTPUT -Append
           echo "zip-path=$zipName" | Out-File -FilePath $env:GITHUB_OUTPUT -Append
-          Write-Host "Created archive: $zipName"
+          Write-Host "Created debug archive: $zipName"
         } else {
           Write-Error "No artifacts found to archive"
           exit 1
         }
 
-    - name: Upload build artifacts
+    - name: Create public release archive (without PDB files)
+      id: create-public-archive
+      shell: pwsh
+      run: |
+        # Create public zip file with timestamp
+        $timestamp = Get-Date -Format "yyyyMMdd-HHmmss"
+        $repoName = "${{ github.event.repository.name }}"
+        if ([string]::IsNullOrEmpty($repoName)) {
+          $repoName = Split-Path -Leaf $env:GITHUB_WORKSPACE
+        }
+        $publicZipName = "$repoName-public-$timestamp.zip"
+        
+        if (Test-Path "artifacts-public") {
+          Compress-Archive -Path "artifacts-public\*" -DestinationPath $publicZipName
+          echo "public-artifact-name=$repoName-public" | Out-File -FilePath $env:GITHUB_OUTPUT -Append
+          echo "public-zip-path=$publicZipName" | Out-File -FilePath $env:GITHUB_OUTPUT -Append
+          Write-Host "Created public archive: $publicZipName"
+        } else {
+          Write-Error "No public artifacts found to archive"
+          exit 1
+        }
+
+    - name: Upload debug build artifacts (with PDB files)
       uses: actions/upload-artifact@v4
       with:
         name: ${{ steps.create-archive.outputs.artifact-name }}
         path: ${{ steps.create-archive.outputs.zip-path }}
+        retention-days: ${{ inputs.retention-days }}
+
+    - name: Upload public release artifacts (without PDB files)
+      uses: actions/upload-artifact@v4
+      with:
+        name: ${{ steps.create-public-archive.outputs.public-artifact-name }}
+        path: ${{ steps.create-public-archive.outputs.public-zip-path }}
         retention-days: ${{ inputs.retention-days }}
 
 branding:
