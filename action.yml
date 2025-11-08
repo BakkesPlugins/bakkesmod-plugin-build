@@ -1,0 +1,153 @@
+name: 'BakkesMod Plugin Build Action'
+description: 'A composite action to build BakkesMod plugins'
+author: 'Bakkesplugins'
+
+inputs:
+  build-config:
+    description: 'Build configuration (Debug or Release)'
+    required: false
+    default: 'Release'
+  
+  bakkesmod-sdk-ref:
+    description: 'Git reference for BakkesMod SDK (branch, tag, or commit)'
+    required: false
+    default: 'main'
+  
+  vcpkg-ref:
+    description: 'Git reference for vcpkg (branch, tag, or commit)'
+    required: false
+    default: 'master'
+  
+  retention-days:
+    description: 'Number of days to retain build artifacts'
+    required: false
+    default: '30'
+
+outputs:
+  artifact-name:
+    description: 'Name of the uploaded artifact'
+    value: ${{ steps.create-archive.outputs.artifact-name }}
+  
+  zip-path:
+    description: 'Path to the created release zip file'
+    value: ${{ steps.create-archive.outputs.zip-path }}
+  
+  build-status:
+    description: 'Status of the build process'
+    value: ${{ steps.msbuild.outputs.status }}
+
+runs:
+  using: 'composite'
+  steps:
+    - name: Checkout BakkesMod SDK
+      uses: actions/checkout@v4
+      with:
+        repository: bakkesmodorg/BakkesModSDK
+        path: bakkesmod\bakkesmodsdk
+        ref: ${{ inputs.bakkesmod-sdk-ref }}
+
+    - name: Check for vcpkg manifest
+      id: vcpkg-check
+      shell: pwsh
+      run: |
+        $manifest = Test-Path "$env:GITHUB_WORKSPACE/vcpkg.json"
+        Write-Host "vcpkg manifest present: $manifest"
+        echo "vcpkg_manifest=$manifest" | Out-File -FilePath $env:GITHUB_OUTPUT -Append
+
+    - name: Checkout vcpkg
+      if: steps.vcpkg-check.outputs.vcpkg_manifest == 'True'
+      uses: actions/checkout@v4
+      with:
+        repository: microsoft/vcpkg
+        path: vcpkg
+        ref: ${{ inputs.vcpkg-ref }}
+
+    - name: Bootstrap vcpkg
+      if: steps.vcpkg-check.outputs.vcpkg_manifest == 'True'
+      shell: pwsh
+      run: |
+        .\vcpkg\bootstrap-vcpkg.bat
+
+    - name: Integrate vcpkg
+      if: steps.vcpkg-check.outputs.vcpkg_manifest == 'True'
+      shell: pwsh
+      run: |
+        .\vcpkg\vcpkg.exe integrate install
+
+    - name: Setup MSBuild
+      uses: microsoft/setup-msbuild@v2
+
+    - name: Find solution file
+      id: find-sln
+      shell: pwsh
+      run: |
+        $sln = Get-ChildItem -Path $env:GITHUB_WORKSPACE -Filter *.sln -Recurse | Select-Object -First 1
+        if ($null -eq $sln) { Write-Error 'No .sln file found!'; exit 1 }
+        Write-Host "sln path: $($sln.FullName)"
+        echo "SOLUTION_PATH=$($sln.FullName)" | Out-File -FilePath $env:GITHUB_ENV -Append
+
+    - name: Build with MSBuild
+      id: msbuild
+      shell: pwsh
+      run: |
+        try {
+          msbuild /m /p:Configuration=${{ inputs.build-config }} /p:BakkesModPath=$env:GITHUB_WORKSPACE\bakkesmod /p:PostBuildEventUseInBuild=false $env:SOLUTION_PATH
+          echo "status=success" | Out-File -FilePath $env:GITHUB_OUTPUT -Append
+          Write-Host "Build completed successfully"
+        } catch {
+          echo "status=failed" | Out-File -FilePath $env:GITHUB_OUTPUT -Append
+          Write-Error "Build failed: $_"
+          exit 1
+        }
+
+    - name: Prepare build artifacts
+      shell: pwsh
+      run: |
+        # Create artifacts/plugins directory
+        New-Item -ItemType Directory -Force -Path "artifacts/plugins"
+        
+        if (Test-Path "plugins") {
+          Get-ChildItem -Path "plugins" -Include "*.dll", "*.pdb" -Recurse | ForEach-Object {
+            Copy-Item $_.FullName -Destination "artifacts/plugins" -Force
+          }
+        }
+        
+        if (Test-Path "data") {
+          Copy-Item -Path "data" -Destination "artifacts/data" -Recurse -Force
+        }
+        
+        Write-Host "Artifacts contents:"
+        Get-ChildItem -Path "artifacts" -Recurse
+
+    - name: Create release archive
+      id: create-archive
+      shell: pwsh
+      run: |
+        # Create zip file with timestamp
+        $timestamp = Get-Date -Format "yyyyMMdd-HHmmss"
+        $repoName = "${{ github.event.repository.name }}"
+        if ([string]::IsNullOrEmpty($repoName)) {
+          $repoName = Split-Path -Leaf $env:GITHUB_WORKSPACE
+        }
+        $zipName = "$repoName-$timestamp.zip"
+        
+        if (Test-Path "artifacts") {
+          Compress-Archive -Path "artifacts\*" -DestinationPath $zipName
+          echo "artifact-name=$repoName" | Out-File -FilePath $env:GITHUB_OUTPUT -Append
+          echo "zip-path=$zipName" | Out-File -FilePath $env:GITHUB_OUTPUT -Append
+          Write-Host "Created archive: $zipName"
+        } else {
+          Write-Error "No artifacts found to archive"
+          exit 1
+        }
+
+    - name: Upload build artifacts
+      uses: actions/upload-artifact@v4
+      with:
+        name: ${{ steps.create-archive.outputs.artifact-name }}
+        path: ${{ steps.create-archive.outputs.zip-path }}
+        retention-days: ${{ inputs.retention-days }}
+
+branding:
+  icon: 'package'
+  color: 'blue'

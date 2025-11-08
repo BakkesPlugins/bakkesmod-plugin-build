@@ -1,0 +1,35 @@
+# Ignore build outputs
+build/
+bin/
+obj/
+*.dll
+*.pdb
+*.lib
+*.obj
+*.exe
+
+# Visual Studio files
+.vs/
+*.vcxproj.user
+*.vcxproj.filters
+*.sln.docstates
+
+# Temporary files
+*.tmp
+*.temp
+*.log
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# IDE files
+.vscode/
+*.swp
+*.swo
+
+# Node modules (if using any Node.js tools)
+node_modules/
+
+# Action testing
+test-results/
