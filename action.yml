@@ -11,7 +11,7 @@ inputs:
   bakkesmod-sdk-ref:
     description: 'Git reference for BakkesMod SDK (branch, tag, or commit)'
     required: false
-    default: 'main'
+    default: 'master'
   
   vcpkg-ref:
     description: 'Git reference for vcpkg (branch, tag, or commit)'
