@@ -171,15 +171,17 @@ runs:
       id: create-archive
       shell: pwsh
       run: |
+        # Create timestamp for artifact naming
+        $timestamp = Get-Date -Format "yyyyMMdd-HHmmss"
         $repoName = "${{ github.event.repository.name }}"
         if ([string]::IsNullOrEmpty($repoName)) {
           $repoName = Split-Path -Leaf $env:GITHUB_WORKSPACE
         }
         
         if (Test-Path "artifacts") {
-          echo "artifact-name=$repoName-debug" | Out-File -FilePath $env:GITHUB_OUTPUT -Append
+          echo "artifact-name=$repoName-debug-$timestamp" | Out-File -FilePath $env:GITHUB_OUTPUT -Append
           echo "zip-path=artifacts" | Out-File -FilePath $env:GITHUB_OUTPUT -Append
-          Write-Host "Debug artifacts prepared in: artifacts/"
+          Write-Host "Debug artifacts prepared in: artifacts/ (will be named: $repoName-debug-$timestamp)"
         } else {
           Write-Error "No artifacts found"
           exit 1
@@ -189,15 +191,17 @@ runs:
       id: create-public-archive
       shell: pwsh
       run: |
+        # Create timestamp for artifact naming
+        $timestamp = Get-Date -Format "yyyyMMdd-HHmmss"
         $repoName = "${{ github.event.repository.name }}"
         if ([string]::IsNullOrEmpty($repoName)) {
           $repoName = Split-Path -Leaf $env:GITHUB_WORKSPACE
         }
         
         if (Test-Path "artifacts-public") {
-          echo "public-artifact-name=$repoName-public" | Out-File -FilePath $env:GITHUB_OUTPUT -Append
+          echo "public-artifact-name=$repoName-public-$timestamp" | Out-File -FilePath $env:GITHUB_OUTPUT -Append
           echo "public-zip-path=artifacts-public" | Out-File -FilePath $env:GITHUB_OUTPUT -Append
-          Write-Host "Public artifacts prepared in: artifacts-public/"
+          Write-Host "Public artifacts prepared in: artifacts-public/ (will be named: $repoName-public-$timestamp)"
         } else {
           Write-Error "No public artifacts found"
           exit 1
