@@ -167,47 +167,39 @@ runs:
         Write-Host "Public artifacts contents (without PDB files):"
         Get-ChildItem -Path "artifacts-public" -Recurse
 
-    - name: Create release archive (with PDB files)
+    - name: Prepare final artifacts structure
       id: create-archive
       shell: pwsh
       run: |
-        # Create zip file with timestamp
-        $timestamp = Get-Date -Format "yyyyMMdd-HHmmss"
         $repoName = "${{ github.event.repository.name }}"
         if ([string]::IsNullOrEmpty($repoName)) {
           $repoName = Split-Path -Leaf $env:GITHUB_WORKSPACE
         }
-        $zipName = "$repoName-debug-$timestamp.zip"
         
         if (Test-Path "artifacts") {
-          Compress-Archive -Path "artifacts\*" -DestinationPath $zipName
           echo "artifact-name=$repoName-debug" | Out-File -FilePath $env:GITHUB_OUTPUT -Append
-          echo "zip-path=$zipName" | Out-File -FilePath $env:GITHUB_OUTPUT -Append
-          Write-Host "Created debug archive: $zipName"
+          echo "zip-path=artifacts" | Out-File -FilePath $env:GITHUB_OUTPUT -Append
+          Write-Host "Debug artifacts prepared in: artifacts/"
         } else {
-          Write-Error "No artifacts found to archive"
+          Write-Error "No artifacts found"
           exit 1
         }
 
-    - name: Create public release archive (without PDB files)
+    - name: Prepare public artifacts structure
       id: create-public-archive
       shell: pwsh
       run: |
-        # Create public zip file with timestamp
-        $timestamp = Get-Date -Format "yyyyMMdd-HHmmss"
         $repoName = "${{ github.event.repository.name }}"
         if ([string]::IsNullOrEmpty($repoName)) {
           $repoName = Split-Path -Leaf $env:GITHUB_WORKSPACE
         }
-        $publicZipName = "$repoName-public-$timestamp.zip"
         
         if (Test-Path "artifacts-public") {
-          Compress-Archive -Path "artifacts-public\*" -DestinationPath $publicZipName
           echo "public-artifact-name=$repoName-public" | Out-File -FilePath $env:GITHUB_OUTPUT -Append
-          echo "public-zip-path=$publicZipName" | Out-File -FilePath $env:GITHUB_OUTPUT -Append
-          Write-Host "Created public archive: $publicZipName"
+          echo "public-zip-path=artifacts-public" | Out-File -FilePath $env:GITHUB_OUTPUT -Append
+          Write-Host "Public artifacts prepared in: artifacts-public/"
         } else {
-          Write-Error "No public artifacts found to archive"
+          Write-Error "No public artifacts found"
           exit 1
         }
 
@@ -215,14 +207,14 @@ runs:
       uses: actions/upload-artifact@v4
       with:
         name: ${{ steps.create-archive.outputs.artifact-name }}
-        path: ${{ steps.create-archive.outputs.zip-path }}
+        path: ${{ steps.create-archive.outputs.zip-path }}/*
         retention-days: ${{ inputs.retention-days }}
 
     - name: Upload public release artifacts (without PDB files)
       uses: actions/upload-artifact@v4
       with:
         name: ${{ steps.create-public-archive.outputs.public-artifact-name }}
-        path: ${{ steps.create-public-archive.outputs.public-zip-path }}
+        path: ${{ steps.create-public-archive.outputs.public-zip-path }}/*
         retention-days: ${{ inputs.retention-days }}
 
 branding:
