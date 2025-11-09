@@ -136,6 +136,12 @@ runs:
         echo "status=success" | Out-File -FilePath $env:GITHUB_OUTPUT -Append
         Write-Host "::notice::Build completed successfully"
 
+    - name: Upload error log
+      if: failure()
+      uses: actions/upload-artifact@v4
+      with:
+        name: msbuild-errors
+        path: ${{ runner.temp }}/msbuild-errors.txt
 
     - name: Prepare build artifacts
       shell: pwsh
