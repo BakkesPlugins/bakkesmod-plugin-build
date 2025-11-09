@@ -102,48 +102,46 @@ runs:
       id: msbuild
       shell: pwsh
       run: |
-        $logFile = "$env:RUNNER_TEMP\msbuild.log"
         $errorsFile = "$env:RUNNER_TEMP\msbuild-errors.txt"
 
         Write-Host "::group::MSBuild Output"
+        # Use MSBuild's built-in file logger to capture errors only
         msbuild /m /v:normal `
           /p:Configuration=${{ inputs.build-config }} `
           /p:BakkesModPath=$env:GITHUB_WORKSPACE\bakkesmod `
           /p:PostBuildEventUseInBuild=false `
-          /p:UseStructuredOutput=false `
-          $env:SOLUTION_PATH | Tee-Object -FilePath $logFile
+          /fl /flp:"logfile=$errorsFile;errorsonly"
+          $env:SOLUTION_PATH
         $exitCode = $LASTEXITCODE
         Write-Host "::endgroup::"
-
-        # Extract lines containing "error" and remove duplicates
-        Select-String -Path $logFile -Pattern " error " | ForEach-Object { $_.Line } |
-          Select-Object -Unique |
-          Out-File -FilePath $errorsFile -Encoding utf8
-
-        $errors = Get-Content $errorsFile -Raw
 
         echo "exit-code=$exitCode" | Out-File -FilePath $env:GITHUB_OUTPUT -Append
 
         if ($exitCode -ne 0) {
           echo "status=failed" | Out-File -FilePath $env:GITHUB_OUTPUT -Append
 
-          # ✅ Send multi-line errors as a GitHub output
-          echo "errors<<EOF" | Out-File -FilePath $env:GITHUB_OUTPUT -Append
-          Get-Content $errorsFile | Out-File -FilePath $env:GITHUB_OUTPUT -Append
-          echo "EOF" | Out-File -FilePath $env:GITHUB_OUTPUT -Append
+          # Check if errors file exists and has content
+          if (Test-Path $errorsFile) {
+            # ✅ Send multi-line errors as a GitHub output
+            echo "errors<<EOF" | Out-File -FilePath $env:GITHUB_OUTPUT -Append
+            Get-Content $errorsFile | Out-File -FilePath $env:GITHUB_OUTPUT -Append
+            echo "EOF" | Out-File -FilePath $env:GITHUB_OUTPUT -Append
 
-          # ✅ Write errors to the summary markdown file
-          Add-Content $env:GITHUB_STEP_SUMMARY "### ❌ Build failed"
-          Add-Content $env:GITHUB_STEP_SUMMARY ""
-          Add-Content $env:GITHUB_STEP_SUMMARY "#### Extracted MSBuild errors:"
-          Add-Content $env:GITHUB_STEP_SUMMARY ""
-          Add-Content $env:GITHUB_STEP_SUMMARY '```text'
-          Get-Content $errorsFile | Add-Content $env:GITHUB_STEP_SUMMARY
-          Add-Content $env:GITHUB_STEP_SUMMARY '```'
+            # ✅ Write errors to the summary markdown file
+            Add-Content $env:GITHUB_STEP_SUMMARY "### ❌ Build failed"
+            Add-Content $env:GITHUB_STEP_SUMMARY ""
+            Add-Content $env:GITHUB_STEP_SUMMARY "#### MSBuild errors:"
+            Add-Content $env:GITHUB_STEP_SUMMARY ""
+            Add-Content $env:GITHUB_STEP_SUMMARY '```text'
+            Get-Content $errorsFile | Add-Content $env:GITHUB_STEP_SUMMARY
+            Add-Content $env:GITHUB_STEP_SUMMARY '```'
 
-          # Also show in log output
-          Write-Host "::error::Build failed. Extracted errors:"
-          Get-Content $errorsFile | ForEach-Object { Write-Host $_ }
+            # Also show in log output
+            Write-Host "::error::Build failed. Errors:"
+            Get-Content $errorsFile | ForEach-Object { Write-Host $_ }
+          } else {
+            Write-Host "::error::Build failed but no errors were captured in the log file"
+          }
 
           exit $exitCode
         }
