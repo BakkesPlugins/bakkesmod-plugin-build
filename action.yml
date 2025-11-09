@@ -114,9 +114,9 @@ runs:
         $exitCode = $LASTEXITCODE
         Write-Host "::endgroup::"
 
-        # Extract only the relevant errors (ignoring warnings unless you want them)
-        Select-String -Path $logFile -Pattern "error\s+\w+:" -SimpleMatch:$false |
-          ForEach-Object { $_.Line } | Out-File -FilePath $errorsFile -Encoding utf8
+        # Extract only error lines
+        Select-String -Path $logFile -Pattern " error " | ForEach-Object { $_.Line } |
+          Out-File -FilePath $errorsFile -Encoding utf8
 
         $errors = Get-Content $errorsFile -Raw
 
@@ -124,12 +124,15 @@ runs:
 
         if ($exitCode -ne 0) {
           echo "status=failed" | Out-File -FilePath $env:GITHUB_OUTPUT -Append
+
+          # Multi-line output block for GITHUB_OUTPUT
           echo "errors<<EOF" | Out-File -FilePath $env:GITHUB_OUTPUT -Append
-          echo "$errors" | Out-File -FilePath $env:GITHUB_OUTPUT -Append
+          Get-Content $errorsFile | Out-File -FilePath $env:GITHUB_OUTPUT -Append
           echo "EOF" | Out-File -FilePath $env:GITHUB_OUTPUT -Append
 
           Write-Host "::error::Build failed. Extracted errors:"
-          Write-Host $errors
+          Get-Content $errorsFile | ForEach-Object { Write-Host $_ }
+
           exit $exitCode
         }
 
