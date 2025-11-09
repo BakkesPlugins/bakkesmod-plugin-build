@@ -98,15 +98,16 @@ runs:
       id: msbuild
       shell: pwsh
       run: |
-        try {
-          msbuild /m /p:Configuration=${{ inputs.build-config }} /p:BakkesModPath=$env:GITHUB_WORKSPACE\bakkesmod /p:PostBuildEventUseInBuild=false $env:SOLUTION_PATH
-          echo "status=success" | Out-File -FilePath $env:GITHUB_OUTPUT -Append
-          Write-Host "Build completed successfully"
-        } catch {
+        msbuild /m /p:Configuration=${{ inputs.build-config }} /p:BakkesModPath=$env:GITHUB_WORKSPACE\bakkesmod /p:PostBuildEventUseInBuild=false $env:SOLUTION_PATH
+        
+        if ($LASTEXITCODE -ne 0) {
           echo "status=failed" | Out-File -FilePath $env:GITHUB_OUTPUT -Append
-          Write-Error "Build failed: $_"
-          exit 1
+          Write-Error "Build failed with exit code $LASTEXITCODE"
+          exit $LASTEXITCODE
         }
+        
+        echo "status=success" | Out-File -FilePath $env:GITHUB_OUTPUT -Append
+        Write-Host "Build completed successfully"
 
     - name: Prepare build artifacts
       shell: pwsh
