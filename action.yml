@@ -114,8 +114,9 @@ runs:
         $exitCode = $LASTEXITCODE
         Write-Host "::endgroup::"
 
-        # Extract lines containing "error"
+        # Extract lines containing "error" and remove duplicates
         Select-String -Path $logFile -Pattern " error " | ForEach-Object { $_.Line } |
+          Select-Object -Unique |
           Out-File -FilePath $errorsFile -Encoding utf8
 
         $errors = Get-Content $errorsFile -Raw
