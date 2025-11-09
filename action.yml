@@ -43,6 +43,10 @@ outputs:
   build-status:
     description: 'Status of the build process'
     value: ${{ steps.msbuild.outputs.status }}
+  
+  build-exit-code:
+    description: 'Exit code from the MSBuild process'
+    value: ${{ steps.msbuild.outputs.exit-code }}
 
 runs:
   using: 'composite'
@@ -98,16 +102,21 @@ runs:
       id: msbuild
       shell: pwsh
       run: |
-        msbuild /m /p:Configuration=${{ inputs.build-config }} /p:BakkesModPath=$env:GITHUB_WORKSPACE\bakkesmod /p:PostBuildEventUseInBuild=false $env:SOLUTION_PATH
+        Write-Host "::group::MSBuild Output"
+        msbuild /m /v:normal /p:Configuration=${{ inputs.build-config }} /p:BakkesModPath=$env:GITHUB_WORKSPACE\bakkesmod /p:PostBuildEventUseInBuild=false $env:SOLUTION_PATH
+        $exitCode = $LASTEXITCODE
+        Write-Host "::endgroup::"
         
-        if ($LASTEXITCODE -ne 0) {
+        echo "exit-code=$exitCode" | Out-File -FilePath $env:GITHUB_OUTPUT -Append
+        
+        if ($exitCode -ne 0) {
           echo "status=failed" | Out-File -FilePath $env:GITHUB_OUTPUT -Append
-          Write-Error "Build failed with exit code $LASTEXITCODE"
-          exit $LASTEXITCODE
+          Write-Host "::error::Build failed with $exitCode error(s). Check the MSBuild Output above for details."
+          exit $exitCode
         }
         
         echo "status=success" | Out-File -FilePath $env:GITHUB_OUTPUT -Append
-        Write-Host "Build completed successfully"
+        Write-Host "::notice::Build completed successfully"
 
     - name: Prepare build artifacts
       shell: pwsh
