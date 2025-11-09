@@ -114,7 +114,7 @@ runs:
         $exitCode = $LASTEXITCODE
         Write-Host "::endgroup::"
 
-        # Extract only error lines
+        # Extract lines containing "error"
         Select-String -Path $logFile -Pattern " error " | ForEach-Object { $_.Line } |
           Out-File -FilePath $errorsFile -Encoding utf8
 
@@ -125,11 +125,21 @@ runs:
         if ($exitCode -ne 0) {
           echo "status=failed" | Out-File -FilePath $env:GITHUB_OUTPUT -Append
 
-          # Multi-line output block for GITHUB_OUTPUT
+          # ✅ Send multi-line errors as a GitHub output
           echo "errors<<EOF" | Out-File -FilePath $env:GITHUB_OUTPUT -Append
           Get-Content $errorsFile | Out-File -FilePath $env:GITHUB_OUTPUT -Append
           echo "EOF" | Out-File -FilePath $env:GITHUB_OUTPUT -Append
 
+          # ✅ Write errors to the summary markdown file
+          Add-Content $env:GITHUB_STEP_SUMMARY "### ❌ Build failed"
+          Add-Content $env:GITHUB_STEP_SUMMARY ""
+          Add-Content $env:GITHUB_STEP_SUMMARY "#### Extracted MSBuild errors:"
+          Add-Content $env:GITHUB_STEP_SUMMARY ""
+          Add-Content $env:GITHUB_STEP_SUMMARY '```'
+          Get-Content $errorsFile | Add-Content $env:GITHUB_STEP_SUMMARY
+          Add-Content $env:GITHUB_STEP_SUMMARY '```'
+
+          # Also show in log output
           Write-Host "::error::Build failed. Extracted errors:"
           Get-Content $errorsFile | ForEach-Object { Write-Host $_ }
 
@@ -138,6 +148,8 @@ runs:
 
         echo "status=success" | Out-File -FilePath $env:GITHUB_OUTPUT -Append
         Write-Host "::notice::Build completed successfully"
+        Add-Content $env:GITHUB_STEP_SUMMARY "✅ Build completed successfully"
+
 
     - name: Upload error log
       if: failure()
