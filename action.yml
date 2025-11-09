@@ -110,7 +110,7 @@ runs:
           /p:Configuration=${{ inputs.build-config }} `
           /p:BakkesModPath=$env:GITHUB_WORKSPACE\bakkesmod `
           /p:PostBuildEventUseInBuild=false `
-          $env:SOLUTION_PATH *>&1 | Tee-Object -FilePath $logFile
+          $env:SOLUTION_PATH | Tee-Object -FilePath $logFile
         $exitCode = $LASTEXITCODE
         Write-Host "::endgroup::"
 
@@ -135,7 +135,7 @@ runs:
           Add-Content $env:GITHUB_STEP_SUMMARY ""
           Add-Content $env:GITHUB_STEP_SUMMARY "#### Extracted MSBuild errors:"
           Add-Content $env:GITHUB_STEP_SUMMARY ""
-          Add-Content $env:GITHUB_STEP_SUMMARY '```'
+          Add-Content $env:GITHUB_STEP_SUMMARY '```text'
           Get-Content $errorsFile | Add-Content $env:GITHUB_STEP_SUMMARY
           Add-Content $env:GITHUB_STEP_SUMMARY '```'
 
