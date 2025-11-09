@@ -102,21 +102,40 @@ runs:
       id: msbuild
       shell: pwsh
       run: |
+        $logFile = "$env:RUNNER_TEMP\msbuild.log"
+        $errorsFile = "$env:RUNNER_TEMP\msbuild-errors.txt"
+
         Write-Host "::group::MSBuild Output"
-        msbuild /m /v:normal /p:Configuration=${{ inputs.build-config }} /p:BakkesModPath=$env:GITHUB_WORKSPACE\bakkesmod /p:PostBuildEventUseInBuild=false $env:SOLUTION_PATH
+        msbuild /m /v:normal `
+          /p:Configuration=${{ inputs.build-config }} `
+          /p:BakkesModPath=$env:GITHUB_WORKSPACE\bakkesmod `
+          /p:PostBuildEventUseInBuild=false `
+          $env:SOLUTION_PATH *>&1 | Tee-Object -FilePath $logFile
         $exitCode = $LASTEXITCODE
         Write-Host "::endgroup::"
-        
+
+        # Extract only the relevant errors (ignoring warnings unless you want them)
+        Select-String -Path $logFile -Pattern "error\s+\w+:" -SimpleMatch:$false |
+          ForEach-Object { $_.Line } | Out-File -FilePath $errorsFile -Encoding utf8
+
+        $errors = Get-Content $errorsFile -Raw
+
         echo "exit-code=$exitCode" | Out-File -FilePath $env:GITHUB_OUTPUT -Append
-        
+
         if ($exitCode -ne 0) {
           echo "status=failed" | Out-File -FilePath $env:GITHUB_OUTPUT -Append
-          Write-Host "::error::Build failed with $exitCode error(s). Check the MSBuild Output above for details."
+          echo "errors<<EOF" | Out-File -FilePath $env:GITHUB_OUTPUT -Append
+          echo "$errors" | Out-File -FilePath $env:GITHUB_OUTPUT -Append
+          echo "EOF" | Out-File -FilePath $env:GITHUB_OUTPUT -Append
+
+          Write-Host "::error::Build failed. Extracted errors:"
+          Write-Host $errors
           exit $exitCode
         }
-        
+
         echo "status=success" | Out-File -FilePath $env:GITHUB_OUTPUT -Append
         Write-Host "::notice::Build completed successfully"
+
 
     - name: Prepare build artifacts
       shell: pwsh
