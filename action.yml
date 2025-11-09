@@ -109,6 +109,7 @@ runs:
         msbuild /m /v:normal `
           /p:Configuration=${{ inputs.build-config }} `
           /p:BakkesModPath=$env:GITHUB_WORKSPACE\bakkesmod `
+          /p:UseStructuredOutput=false `
           /p:PostBuildEventUseInBuild=false `
           /fl /flp:"logfile=$errorsFile;errorsonly" `
           $env:SOLUTION_PATH
