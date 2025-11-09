@@ -110,7 +110,7 @@ runs:
           /p:Configuration=${{ inputs.build-config }} `
           /p:BakkesModPath=$env:GITHUB_WORKSPACE\bakkesmod `
           /p:PostBuildEventUseInBuild=false `
-          /fl /flp:"logfile=$errorsFile;errorsonly"
+          /fl /flp:"logfile=$errorsFile;errorsonly" `
           $env:SOLUTION_PATH
         $exitCode = $LASTEXITCODE
         Write-Host "::endgroup::"
