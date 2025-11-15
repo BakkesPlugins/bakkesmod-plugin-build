@@ -29,7 +29,7 @@ jobs:
         uses: actions/checkout@v4
       
       - name: Build BakkesMod Plugin
-        uses: Bakkesplugins-Review-Testing/bakkesmod-plugin-build@v1.0.0
+        uses: Bakkesplugins/bakkesmod-plugin-build@v1.0.0
         with:
           build-config: 'Release'
           bakkesmod-sdk-ref: 'master'
@@ -70,7 +70,7 @@ jobs:
 ```yaml
 - name: Build BakkesMod Plugin
   id: build-plugin
-  uses: Bakkesplugins-Review-Testing/bakkesmod-plugin-build@v1.0.0
+  uses: Bakkesplugins/bakkesmod-plugin-build@v1.0.0
   with:
     build-config: 'Release'
     retention-days: '7'
