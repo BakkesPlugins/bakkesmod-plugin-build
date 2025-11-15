@@ -8,7 +8,6 @@ std::shared_ptr<CVarManagerWrapper> _globalCvarManager;
 
 void TestProject::onLoad()
 {
-	SYNTAX ERROR
 	_globalCvarManager = cvarManager;
 	//LOG("Plugin loaded!");
 	// !! Enable debug logging by setting DEBUG_LOG = true in logging.h !!
