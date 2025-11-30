@@ -58,11 +58,26 @@ runs:
         path: bakkesmod\bakkesmodsdk
         ref: ${{ inputs.bakkesmod-sdk-ref }}
 
+    - name: Setup MSBuild
+      uses: microsoft/setup-msbuild@v2
+
+    - name: Find solution file
+      id: find-sln
+      shell: pwsh
+      run: |
+        $sln = Get-ChildItem -Path $env:GITHUB_WORKSPACE -Filter *.sln -Recurse | Select-Object -First 1
+        if ($null -eq $sln) { Write-Error 'No .sln file found!'; exit 1 }
+        Write-Host "sln path: $($sln.FullName)"
+        echo "SOLUTION_PATH=$($sln.FullName)" | Out-File -FilePath $env:GITHUB_ENV -Append
+        echo "SOLUTION_DIR=$($sln.DirectoryName)" | Out-File -FilePath $env:GITHUB_ENV -Append
+
     - name: Check for vcpkg manifest
       id: vcpkg-check
       shell: pwsh
       run: |
-        $manifest = Test-Path "$env:GITHUB_WORKSPACE/vcpkg.json"
+        $manifestPath = Join-Path $env:SOLUTION_DIR "vcpkg.json"
+        $manifest = Test-Path $manifestPath
+        Write-Host "Checking for vcpkg manifest at: $manifestPath"
         Write-Host "vcpkg manifest present: $manifest"
         echo "vcpkg_manifest=$manifest" | Out-File -FilePath $env:GITHUB_OUTPUT -Append
 
@@ -85,18 +100,6 @@ runs:
       shell: pwsh
       run: |
         .\vcpkg\vcpkg.exe integrate install
-
-    - name: Setup MSBuild
-      uses: microsoft/setup-msbuild@v2
-
-    - name: Find solution file
-      id: find-sln
-      shell: pwsh
-      run: |
-        $sln = Get-ChildItem -Path $env:GITHUB_WORKSPACE -Filter *.sln -Recurse | Select-Object -First 1
-        if ($null -eq $sln) { Write-Error 'No .sln file found!'; exit 1 }
-        Write-Host "sln path: $($sln.FullName)"
-        echo "SOLUTION_PATH=$($sln.FullName)" | Out-File -FilePath $env:GITHUB_ENV -Append
 
     - name: Build with MSBuild
       id: msbuild

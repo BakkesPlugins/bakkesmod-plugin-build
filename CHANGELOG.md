@@ -23,7 +23,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - N/A
 
 ### Fixed
-- N/A
+- vcpkg manifest (`vcpkg.json`) is now checked in the same directory as the solution file instead of the workspace root
 
 ### Security
 - N/A
