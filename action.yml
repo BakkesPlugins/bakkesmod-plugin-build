@@ -22,11 +22,6 @@ inputs:
     description: 'Number of days to retain build artifacts'
     required: false
     default: '30'
-  
-  plugin-outdir:
-    description: 'Output directory for the plugin build. Can be an absolute path, a relative path (relative to solution directory), or use the $(SolutionDir) MSBuild variable. This value is passed to MSBuild as /p:OutDir= to override the project settings.'
-    required: false
-    default: 'plugins\'
 
 outputs:
   artifact-name:
@@ -111,21 +106,14 @@ runs:
       shell: pwsh
       run: |
         $errorsFile = "$env:RUNNER_TEMP\msbuild-errors.txt"
-        
-        # Validate and sanitize plugin-outdir input
-        $pluginOutDir = "${{ inputs.plugin-outdir }}"
-        if ([string]::IsNullOrWhiteSpace($pluginOutDir)) {
-          Write-Error "plugin-outdir cannot be empty"
-          exit 1
-        }
-        Write-Host "Using plugin output directory: $pluginOutDir"
 
         Write-Host "::group::MSBuild Output"
         # Use MSBuild's built-in file logger to capture errors only
+        # Force OutDir to ensure consistent artifact location regardless of project settings
         msbuild /m /v:normal `
           /p:Configuration=${{ inputs.build-config }} `
           /p:BakkesModPath=$env:GITHUB_WORKSPACE\bakkesmod `
-          /p:OutDir=$pluginOutDir `
+          /p:OutDir='$(SolutionDir)plugins\' `
           /p:UseStructuredOutput=false `
           /p:PostBuildEventUseInBuild=false `
           /fl /flp:"logfile=$errorsFile;errorsonly" `
@@ -186,36 +174,11 @@ runs:
         $solutionDir = Split-Path -Parent $env:SOLUTION_PATH
         Write-Host "Solution directory: $solutionDir"
         
-        # Parse the plugin output directory to resolve MSBuild variables
-        $pluginOutDir = "${{ inputs.plugin-outdir }}"
-        Write-Host "Raw plugin-outdir: $pluginOutDir"
-        
-        # Replace $(SolutionDir) with actual solution directory path
-        if ($pluginOutDir.Contains('$(SolutionDir)')) {
-          # Remove the $(SolutionDir) variable
-          $remainder = $pluginOutDir.Replace('$(SolutionDir)', '')
-          # Remove leading path separators from the remainder
-          $remainder = $remainder.TrimStart('\', '/')
-          # Join with solution directory if there's a remainder, otherwise use solution dir
-          if ([string]::IsNullOrWhiteSpace($remainder)) {
-            $pluginOutDir = $solutionDir
-          } else {
-            $pluginOutDir = Join-Path $solutionDir $remainder
-          }
-        } elseif (-not [System.IO.Path]::IsPathRooted($pluginOutDir)) {
-          # If it's a relative path without $(SolutionDir), join it to solution directory
-          $pluginOutDir = Join-Path $solutionDir $pluginOutDir
-        }
-        # else: it's an absolute path, use as-is
-        
-        # Normalize path to remove trailing separators for consistency
-        $pluginOutDir = $pluginOutDir.TrimEnd('\', '/')
-        Write-Host "Resolved plugin output directory: $pluginOutDir"
-        
-        # Look for plugins directory using the specified output directory
-        if (Test-Path $pluginOutDir) {
-          Write-Host "Found plugin output directory: $pluginOutDir"
-          Get-ChildItem -Path $pluginOutDir -Include "*.dll", "*.pdb" -Recurse | ForEach-Object {
+        # Look for plugins directory relative to solution
+        $pluginsPath = Join-Path $solutionDir "plugins"
+        if (Test-Path $pluginsPath) {
+          Write-Host "Found plugins directory: $pluginsPath"
+          Get-ChildItem -Path $pluginsPath -Include "*.dll", "*.pdb" -Recurse | ForEach-Object {
             Write-Host "Copying: $($_.FullName)"
             # Copy all files (including PDB) to main artifacts
             Copy-Item $_.FullName -Destination "artifacts/plugins" -Force
@@ -226,35 +189,19 @@ runs:
             }
           }
         } else {
-          Write-Host "No plugin output directory found at: $pluginOutDir"
-          
-          # Fallback to old behavior for backwards compatibility
-          $pluginsPath = Join-Path $solutionDir "plugins"
-          if (Test-Path $pluginsPath) {
-            Write-Host "Found plugins directory (legacy): $pluginsPath"
-            Get-ChildItem -Path $pluginsPath -Include "*.dll", "*.pdb" -Recurse | ForEach-Object {
-              Write-Host "Copying: $($_.FullName)"
-              # Copy all files (including PDB) to main artifacts
-              Copy-Item $_.FullName -Destination "artifacts/plugins" -Force
-              
-              # Copy only DLL files to public artifacts (excluding PDB)
-              if ($_.Extension -eq ".dll") {
-                Copy-Item $_.FullName -Destination "artifacts-public/plugins" -Force
-              }
-            }
-          }
-          
-          # Also check workspace root for backwards compatibility
-          if (Test-Path "plugins") {
-            Write-Host "Found plugins directory in workspace root (legacy)"
-            Get-ChildItem -Path "plugins" -Include "*.dll", "*.pdb" -Recurse | ForEach-Object {
-              # Copy all files (including PDB) to main artifacts
-              Copy-Item $_.FullName -Destination "artifacts/plugins" -Force
-              
-              # Copy only DLL files to public artifacts (excluding PDB)
-              if ($_.Extension -eq ".dll") {
-                Copy-Item $_.FullName -Destination "artifacts-public/plugins" -Force
-              }
+          Write-Host "No plugins directory found at: $pluginsPath"
+        }
+        
+        # Also check workspace root for backwards compatibility
+        if (Test-Path "plugins") {
+          Write-Host "Found plugins directory in workspace root"
+          Get-ChildItem -Path "plugins" -Include "*.dll", "*.pdb" -Recurse | ForEach-Object {
+            # Copy all files (including PDB) to main artifacts
+            Copy-Item $_.FullName -Destination "artifacts/plugins" -Force
+            
+            # Copy only DLL files to public artifacts (excluding PDB)
+            if ($_.Extension -eq ".dll") {
+              Copy-Item $_.FullName -Destination "artifacts-public/plugins" -Force
             }
           }
         }
