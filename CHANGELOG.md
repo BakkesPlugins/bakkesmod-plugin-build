@@ -24,6 +24,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 - vcpkg manifest (`vcpkg.json`) is now checked in the same directory as the solution file instead of the workspace root
+- Build now forces `OutDir` to `$(SolutionDir)plugins\` to ensure artifacts are found even if project files have custom output directory settings
 
 ### Security
 - N/A

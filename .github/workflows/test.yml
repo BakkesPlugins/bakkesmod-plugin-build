@@ -9,22 +9,23 @@ on:
     branches: [ main ]
 
 jobs:
-  test-action:
+  test-default-outdir:
     runs-on: windows-latest
+    permissions:
+      contents: read
     
     steps:
       - name: Checkout
         uses: actions/checkout@v4
       
-      # Copy test project to workspace root for testing
-    #   - name: Setup test environment
-    #     shell: pwsh
-    #     run: |
-    #       Copy-Item -Path "test/TestProject/*" -Destination "." -Recurse -Force
-    #       Write-Host "Test environment setup complete"
-    #       Get-ChildItem -Path "." -Name
+      - name: Copy test project to workspace root
+        shell: pwsh
+        run: |
+          Copy-Item -Path "test/TestProject/*" -Destination "." -Recurse -Force
+          Write-Host "Test environment setup complete"
+          Get-ChildItem -Path "." -Name
       
-      - name: Test BakkesMod Plugin Build Action
+      - name: Test BakkesMod Plugin Build Action (Default OutDir)
         id: test-build
         uses: ./  # Uses the action in the current repository
         with:
@@ -37,10 +38,60 @@ jobs:
           echo "Build status: ${{ steps.test-build.outputs.build-status }}"
           echo "Artifact name: ${{ steps.test-build.outputs.artifact-name }}"
           echo "Zip path: ${{ steps.test-build.outputs.zip-path }}"
+          
+          # Verify build succeeded
+          if ("${{ steps.test-build.outputs.build-status }}" -ne "success") {
+            Write-Error "Build failed!"
+            exit 1
+          }
+  
+  test-custom-outdir:
+    runs-on: windows-latest
+    permissions:
+      contents: read
+    
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
       
-      - name: Upload test results
-        if: always()
-        uses: actions/upload-artifact@v4
+      - name: Copy test project to workspace root
+        shell: pwsh
+        run: |
+          Copy-Item -Path "test/TestProject/*" -Destination "." -Recurse -Force
+          Write-Host "Test environment setup complete"
+      
+      - name: Modify project to use custom OutDir
+        shell: pwsh
+        run: |
+          # Modify the .vcxproj file to use a custom output directory
+          $vcxprojPath = "TestProject/TestProject.vcxproj"
+          $vcxproj = Get-Content $vcxprojPath -Raw
+          
+          # Replace the OutDir setting with a custom value
+          $oldOutDir = '<OutDir>$(SolutionDir)plugins\</OutDir>'
+          $newOutDir = '<OutDir>$(SolutionDir)custom-output\</OutDir>'
+          $vcxproj = $vcxproj.Replace($oldOutDir, $newOutDir)
+          
+          Set-Content $vcxprojPath -Value $vcxproj
+          Write-Host "Modified project to use custom output directory: custom-output\"
+      
+      - name: Test BakkesMod Plugin Build Action (Custom OutDir)
+        id: test-build-custom
+        uses: ./  # Uses the action in the current repository
         with:
-          name: test-results
-          path: ./test-results/
+          build-config: 'Release'
+          plugin-outdir: 'custom-output\'
+          retention-days: '7'
+      
+      - name: Verify outputs
+        shell: pwsh
+        run: |
+          echo "Build status: ${{ steps.test-build-custom.outputs.build-status }}"
+          echo "Artifact name: ${{ steps.test-build-custom.outputs.artifact-name }}"
+          echo "Zip path: ${{ steps.test-build-custom.outputs.zip-path }}"
+          
+          # Verify build succeeded
+          if ("${{ steps.test-build-custom.outputs.build-status }}" -ne "success") {
+            Write-Error "Build with custom outdir failed!"
+            exit 1
+          }
