@@ -45,7 +45,7 @@ jobs:
 | `bakkesmod-sdk-ref` | Git reference for BakkesMod SDK (branch, tag, or commit) | No | `master` |
 | `vcpkg-ref` | Git reference for vcpkg (branch, tag, or commit) | No | `master` |
 | `retention-days` | Number of days to retain build artifacts | No | `30` |
-| `plugin-outdir` | Output directory for the plugin build (relative to solution directory) | No | `plugins\` |
+| `plugin-outdir` | Output directory for the plugin build. Can be an absolute path, a relative path (relative to solution directory), or use MSBuild variables like `$(SolutionDir)`. This value is passed to MSBuild as `/p:OutDir=` to override the project settings. | No | `plugins\` |
 
 ## Outputs
 

@@ -24,7 +24,7 @@ inputs:
     default: '30'
   
   plugin-outdir:
-    description: 'Output directory for the plugin build (relative to solution directory)'
+    description: 'Output directory for the plugin build. Can be an absolute path, a relative path (relative to solution directory), or use MSBuild variables like $(SolutionDir). This value is passed to MSBuild as /p:OutDir= to override the project settings.'
     required: false
     default: 'plugins\'
 
@@ -183,17 +183,19 @@ runs:
         Write-Host "Raw plugin-outdir: $pluginOutDir"
         
         # Replace $(SolutionDir) with actual solution directory path
-        $pluginOutDir = $pluginOutDir.Replace('$(SolutionDir)', "$solutionDir\")
-        Write-Host "Resolved plugin-outdir: $pluginOutDir"
-        
-        # Convert to absolute path if it's relative
-        if (-not [System.IO.Path]::IsPathRooted($pluginOutDir)) {
+        if ($pluginOutDir.Contains('$(SolutionDir)')) {
+          $pluginOutDir = $pluginOutDir.Replace('$(SolutionDir)', '')
+          # Join the solution dir with the remainder, ensuring proper path handling
+          $pluginOutDir = Join-Path $solutionDir $pluginOutDir.TrimStart('\', '/')
+        } elseif (-not [System.IO.Path]::IsPathRooted($pluginOutDir)) {
+          # If it's a relative path without $(SolutionDir), join it to solution directory
           $pluginOutDir = Join-Path $solutionDir $pluginOutDir
         }
+        # else: it's an absolute path, use as-is
         
-        # Normalize path (remove trailing backslash for consistency)
+        # Normalize path to remove trailing separators for consistency
         $pluginOutDir = $pluginOutDir.TrimEnd('\', '/')
-        Write-Host "Final plugin output directory: $pluginOutDir"
+        Write-Host "Resolved plugin output directory: $pluginOutDir"
         
         # Look for plugins directory using the specified output directory
         if (Test-Path $pluginOutDir) {

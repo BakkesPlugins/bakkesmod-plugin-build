@@ -60,10 +60,16 @@ jobs:
         shell: pwsh
         run: |
           # Modify the .vcxproj file to use a custom output directory
-          $vcxproj = Get-Content "TestProject/TestProject.vcxproj" -Raw
-          $vcxproj = $vcxproj -replace '<OutDir>\$\(SolutionDir\)plugins\\</OutDir>', '<OutDir>$(SolutionDir)custom-output\</OutDir>'
-          Set-Content "TestProject/TestProject.vcxproj" -Value $vcxproj
-          Write-Host "Modified project to use custom output directory"
+          $vcxprojPath = "TestProject/TestProject.vcxproj"
+          $vcxproj = Get-Content $vcxprojPath -Raw
+          
+          # Replace the OutDir setting with a custom value
+          $oldOutDir = '<OutDir>$(SolutionDir)plugins\</OutDir>'
+          $newOutDir = '<OutDir>$(SolutionDir)custom-output\</OutDir>'
+          $vcxproj = $vcxproj.Replace($oldOutDir, $newOutDir)
+          
+          Set-Content $vcxprojPath -Value $vcxproj
+          Write-Host "Modified project to use custom output directory: custom-output\"
       
       - name: Test BakkesMod Plugin Build Action (Custom OutDir)
         id: test-build-custom
