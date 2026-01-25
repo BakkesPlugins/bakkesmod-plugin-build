@@ -183,7 +183,7 @@ runs:
         Write-Host "Raw plugin-outdir: $pluginOutDir"
         
         # Replace $(SolutionDir) with actual solution directory path
-        $pluginOutDir = $pluginOutDir -replace '\$\(SolutionDir\)', "$solutionDir\"
+        $pluginOutDir = $pluginOutDir.Replace('$(SolutionDir)', "$solutionDir\")
         Write-Host "Resolved plugin-outdir: $pluginOutDir"
         
         # Convert to absolute path if it's relative
