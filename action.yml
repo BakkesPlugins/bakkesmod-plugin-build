@@ -110,10 +110,13 @@ runs:
         Write-Host "::group::MSBuild Output"
         # Use MSBuild's built-in file logger to capture errors only
         # Force OutDir to ensure consistent artifact location regardless of project settings
+        # Use the resolved SOLUTION_DIR environment variable instead of $(SolutionDir) which won't be evaluated
+        $outDir = "$env:SOLUTION_DIR\plugins\"
+        Write-Host "Setting OutDir to: $outDir"
         msbuild /m /v:normal `
           /p:Configuration=${{ inputs.build-config }} `
           /p:BakkesModPath=$env:GITHUB_WORKSPACE\bakkesmod `
-          /p:OutDir='$(SolutionDir)plugins\' `
+          /p:OutDir="$outDir" `
           /p:UseStructuredOutput=false `
           /p:PostBuildEventUseInBuild=false `
           /fl /flp:"logfile=$errorsFile;errorsonly" `
