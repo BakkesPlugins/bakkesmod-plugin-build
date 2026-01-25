@@ -45,6 +45,7 @@ jobs:
 | `bakkesmod-sdk-ref` | Git reference for BakkesMod SDK (branch, tag, or commit) | No | `master` |
 | `vcpkg-ref` | Git reference for vcpkg (branch, tag, or commit) | No | `master` |
 | `retention-days` | Number of days to retain build artifacts | No | `30` |
+| `plugin-outdir` | Output directory for the plugin build (relative to solution directory) | No | `plugins\` |
 
 ## Outputs
 
@@ -91,6 +92,25 @@ jobs:
 ```
 
 ## Advanced Usage
+
+### Custom Output Directory
+
+If your project uses a custom output directory instead of the default `plugins\`, you can specify it with the `plugin-outdir` parameter:
+
+```yaml
+- name: Build BakkesMod Plugin
+  uses: Bakkesplugins/bakkesmod-plugin-build@v1.0.0
+  with:
+    build-config: 'Release'
+    plugin-outdir: 'bin\'  # Custom output directory
+```
+
+The `plugin-outdir` parameter supports MSBuild variables like `$(SolutionDir)` and can be either:
+- A relative path (e.g., `bin\`, `output\plugins\`)
+- An absolute path
+- A path with MSBuild variables (e.g., `$(SolutionDir)bin\`)
+
+This is useful when your project's `.vcxproj` file has a custom `<OutDir>` setting that differs from the default `$(SolutionDir)plugins\`.
 
 ### Using vcpkg Dependencies
 

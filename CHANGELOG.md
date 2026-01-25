@@ -12,8 +12,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Support for BakkesMod plugin builds
 - Configurable build parameters
 - Artifact output handling
+- New `plugin-outdir` input parameter to override the plugin output directory (default: `plugins\`)
+- Support for custom output directories via MSBuild `/p:OutDir=` parameter
 
 ### Changed
+- Build step now passes the `plugin-outdir` parameter to MSBuild to override project-level `<OutDir>` settings
+- Artifact preparation step now uses the configured `plugin-outdir` to locate build outputs
+- Added backwards compatibility fallback to search legacy `plugins/` directory if custom outdir is not found
 - N/A
 
 ### Deprecated
