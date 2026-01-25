@@ -22,6 +22,11 @@ inputs:
     description: 'Number of days to retain build artifacts'
     required: false
     default: '30'
+  
+  plugin-outdir:
+    description: 'Output directory for the plugin build (relative to solution directory)'
+    required: false
+    default: 'plugins\'
 
 outputs:
   artifact-name:
@@ -112,6 +117,7 @@ runs:
         msbuild /m /v:normal `
           /p:Configuration=${{ inputs.build-config }} `
           /p:BakkesModPath=$env:GITHUB_WORKSPACE\bakkesmod `
+          /p:OutDir=${{ inputs.plugin-outdir }} `
           /p:UseStructuredOutput=false `
           /p:PostBuildEventUseInBuild=false `
           /fl /flp:"logfile=$errorsFile;errorsonly" `
@@ -172,11 +178,27 @@ runs:
         $solutionDir = Split-Path -Parent $env:SOLUTION_PATH
         Write-Host "Solution directory: $solutionDir"
         
-        # Look for plugins directory relative to solution
-        $pluginsPath = Join-Path $solutionDir "plugins"
-        if (Test-Path $pluginsPath) {
-          Write-Host "Found plugins directory: $pluginsPath"
-          Get-ChildItem -Path $pluginsPath -Include "*.dll", "*.pdb" -Recurse | ForEach-Object {
+        # Parse the plugin output directory to resolve MSBuild variables
+        $pluginOutDir = "${{ inputs.plugin-outdir }}"
+        Write-Host "Raw plugin-outdir: $pluginOutDir"
+        
+        # Replace $(SolutionDir) with actual solution directory path
+        $pluginOutDir = $pluginOutDir -replace '\$\(SolutionDir\)', "$solutionDir\"
+        Write-Host "Resolved plugin-outdir: $pluginOutDir"
+        
+        # Convert to absolute path if it's relative
+        if (-not [System.IO.Path]::IsPathRooted($pluginOutDir)) {
+          $pluginOutDir = Join-Path $solutionDir $pluginOutDir
+        }
+        
+        # Normalize path (remove trailing backslash for consistency)
+        $pluginOutDir = $pluginOutDir.TrimEnd('\', '/')
+        Write-Host "Final plugin output directory: $pluginOutDir"
+        
+        # Look for plugins directory using the specified output directory
+        if (Test-Path $pluginOutDir) {
+          Write-Host "Found plugin output directory: $pluginOutDir"
+          Get-ChildItem -Path $pluginOutDir -Include "*.dll", "*.pdb" -Recurse | ForEach-Object {
             Write-Host "Copying: $($_.FullName)"
             # Copy all files (including PDB) to main artifacts
             Copy-Item $_.FullName -Destination "artifacts/plugins" -Force
@@ -187,19 +209,35 @@ runs:
             }
           }
         } else {
-          Write-Host "No plugins directory found at: $pluginsPath"
-        }
-        
-        # Also check workspace root for backwards compatibility
-        if (Test-Path "plugins") {
-          Write-Host "Found plugins directory in workspace root"
-          Get-ChildItem -Path "plugins" -Include "*.dll", "*.pdb" -Recurse | ForEach-Object {
-            # Copy all files (including PDB) to main artifacts
-            Copy-Item $_.FullName -Destination "artifacts/plugins" -Force
-            
-            # Copy only DLL files to public artifacts (excluding PDB)
-            if ($_.Extension -eq ".dll") {
-              Copy-Item $_.FullName -Destination "artifacts-public/plugins" -Force
+          Write-Host "No plugin output directory found at: $pluginOutDir"
+          
+          # Fallback to old behavior for backwards compatibility
+          $pluginsPath = Join-Path $solutionDir "plugins"
+          if (Test-Path $pluginsPath) {
+            Write-Host "Found plugins directory (legacy): $pluginsPath"
+            Get-ChildItem -Path $pluginsPath -Include "*.dll", "*.pdb" -Recurse | ForEach-Object {
+              Write-Host "Copying: $($_.FullName)"
+              # Copy all files (including PDB) to main artifacts
+              Copy-Item $_.FullName -Destination "artifacts/plugins" -Force
+              
+              # Copy only DLL files to public artifacts (excluding PDB)
+              if ($_.Extension -eq ".dll") {
+                Copy-Item $_.FullName -Destination "artifacts-public/plugins" -Force
+              }
+            }
+          }
+          
+          # Also check workspace root for backwards compatibility
+          if (Test-Path "plugins") {
+            Write-Host "Found plugins directory in workspace root (legacy)"
+            Get-ChildItem -Path "plugins" -Include "*.dll", "*.pdb" -Recurse | ForEach-Object {
+              # Copy all files (including PDB) to main artifacts
+              Copy-Item $_.FullName -Destination "artifacts/plugins" -Force
+              
+              # Copy only DLL files to public artifacts (excluding PDB)
+              if ($_.Extension -eq ".dll") {
+                Copy-Item $_.FullName -Destination "artifacts-public/plugins" -Force
+              }
             }
           }
         }
