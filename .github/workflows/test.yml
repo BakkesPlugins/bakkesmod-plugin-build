@@ -11,6 +11,8 @@ on:
 jobs:
   test-default-outdir:
     runs-on: windows-latest
+    permissions:
+      contents: read
     
     steps:
       - name: Checkout
@@ -45,6 +47,8 @@ jobs:
   
   test-custom-outdir:
     runs-on: windows-latest
+    permissions:
+      contents: read
     
     steps:
       - name: Checkout
