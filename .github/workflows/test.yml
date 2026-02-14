@@ -44,6 +44,16 @@ jobs:
             Write-Error "Build failed!"
             exit 1
           }
+
+          # Assert plugin settings files are included in the artifact structure
+          $artifactPath = "${{ steps.test-build.outputs.zip-path }}"
+          $settingsPath = Join-Path $artifactPath "plugins/settings"
+          $setFiles = Get-ChildItem -Path $settingsPath -Filter "*.set" -File -ErrorAction SilentlyContinue
+          if ($null -eq $setFiles -or $setFiles.Count -eq 0) {
+            Write-Error "No .set files found in artifact at: $settingsPath"
+            exit 1
+          }
+          Write-Host "Found $($setFiles.Count) .set file(s) in artifact at: $settingsPath"
   
   test-custom-outdir:
     runs-on: windows-latest
@@ -95,3 +105,13 @@ jobs:
             Write-Error "Build with custom outdir failed!"
             exit 1
           }
+
+          # Assert plugin settings files are included in the artifact structure
+          $artifactPath = "${{ steps.test-build-custom.outputs.zip-path }}"
+          $settingsPath = Join-Path $artifactPath "plugins/settings"
+          $setFiles = Get-ChildItem -Path $settingsPath -Filter "*.set" -File -ErrorAction SilentlyContinue
+          if ($null -eq $setFiles -or $setFiles.Count -eq 0) {
+            Write-Error "No .set files found in artifact at: $settingsPath"
+            exit 1
+          }
+          Write-Host "Found $($setFiles.Count) .set file(s) in artifact at: $settingsPath"

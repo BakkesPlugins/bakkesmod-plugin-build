@@ -11,7 +11,7 @@ This action provides a standardized way to build BakkesMod plugins in GitHub Act
 - **Dual Artifact System**: Automatically creates two artifact sets:
   - Debug artifacts (with PDB files) for debugging
   - Public release artifacts (without PDB files) for distribution
-- **Automatic vcpkg Integration**: Detects `vcpkg.json` manifest and automatically sets up vcpkg dependencies
+- **Automatic vcpkg Integration**: Detects `vcpkg.json` next to the solution file and automatically sets up vcpkg dependencies
 - **Build Error Reporting**: Captures and displays MSBuild errors in GitHub Actions summary and workflow logs
 - **Flexible SDK Versioning**: Supports specifying custom BakkesMod SDK and vcpkg references
 
@@ -51,9 +51,9 @@ jobs:
 | Output | Description |
 |--------|-------------|
 | `artifact-name` | Name of the uploaded debug artifact (with PDB files) |
-| `zip-path` | Path to the created debug release zip file (with PDB files) |
+| `zip-path` | Path to the prepared debug artifact directory (`artifacts`) |
 | `public-artifact-name` | Name of the uploaded public release artifact (without PDB files) |
-| `public-zip-path` | Path to the public release zip file (without PDB files) |
+| `public-zip-path` | Path to the prepared public artifact directory (`artifacts-public`) |
 | `build-status` | Status of the build process (`success` or `failed`) |
 | `build-exit-code` | Exit code from the MSBuild process |
 
@@ -94,7 +94,7 @@ jobs:
 
 ### Using vcpkg Dependencies
 
-If your plugin uses external libraries, create a `vcpkg.json` manifest in your repository root:
+If your plugin uses external libraries, create a `vcpkg.json` manifest in the same directory as your `.sln` file:
 
 ```json
 {
@@ -118,6 +118,7 @@ The action creates two separate artifact uploads:
 
 Both artifacts include:
 - Compiled plugin DLL files from the `plugins/` directory
+- Plugin settings files from `plugins/settings/*.set`
 - Any data files from the `data/` directory (if present)
 
 ## Development

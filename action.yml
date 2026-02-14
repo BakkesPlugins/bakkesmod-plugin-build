@@ -29,7 +29,7 @@ outputs:
     value: ${{ steps.create-archive.outputs.artifact-name }}
   
   zip-path:
-    description: 'Path to the created release zip file (with PDB files)'
+    description: 'Path to the prepared debug artifact directory (with PDB files)'
     value: ${{ steps.create-archive.outputs.zip-path }}
   
   public-artifact-name:
@@ -37,7 +37,7 @@ outputs:
     value: ${{ steps.create-public-archive.outputs.public-artifact-name }}
   
   public-zip-path:
-    description: 'Path to the public release zip file (without PDB files)'
+    description: 'Path to the prepared public artifact directory (without PDB files)'
     value: ${{ steps.create-public-archive.outputs.public-zip-path }}
   
   build-status:
@@ -172,6 +172,8 @@ runs:
         # Create artifacts directories for both versions
         New-Item -ItemType Directory -Force -Path "artifacts/plugins"
         New-Item -ItemType Directory -Force -Path "artifacts-public/plugins"
+        New-Item -ItemType Directory -Force -Path "artifacts/plugins/settings"
+        New-Item -ItemType Directory -Force -Path "artifacts-public/plugins/settings"
         
         # Get solution directory from the solution path
         $solutionDir = Split-Path -Parent $env:SOLUTION_PATH
@@ -191,6 +193,15 @@ runs:
               Copy-Item $_.FullName -Destination "artifacts-public/plugins" -Force
             }
           }
+
+          $pluginSettingsPath = Join-Path $pluginsPath "settings"
+          if (Test-Path $pluginSettingsPath) {
+            Get-ChildItem -Path $pluginSettingsPath -Filter "*.set" -File | ForEach-Object {
+              Write-Host "Copying settings file: $($_.FullName)"
+              Copy-Item $_.FullName -Destination "artifacts/plugins/settings" -Force
+              Copy-Item $_.FullName -Destination "artifacts-public/plugins/settings" -Force
+            }
+          }
         } else {
           Write-Host "No plugins directory found at: $pluginsPath"
         }
@@ -205,6 +216,14 @@ runs:
             # Copy only DLL files to public artifacts (excluding PDB)
             if ($_.Extension -eq ".dll") {
               Copy-Item $_.FullName -Destination "artifacts-public/plugins" -Force
+            }
+          }
+
+          if (Test-Path "plugins/settings") {
+            Get-ChildItem -Path "plugins/settings" -Filter "*.set" -File | ForEach-Object {
+              Write-Host "Copying settings file: $($_.FullName)"
+              Copy-Item $_.FullName -Destination "artifacts/plugins/settings" -Force
+              Copy-Item $_.FullName -Destination "artifacts-public/plugins/settings" -Force
             }
           }
         }
